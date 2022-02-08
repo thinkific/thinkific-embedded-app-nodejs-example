@@ -1,0 +1,181 @@
+<%- include('../shared/head.ejs') %>
+<div class="container">
+  <section class="section" id="new-task">
+    <form id="add-form">
+      <div class="form-row">
+        <div class="form-group col-sm-12">
+          <input
+            type="text"
+            class="form-control"
+            id="description"
+            name="description"
+            autofocus
+            required
+          />
+        </div>
+      </div>
+
+      <button type="submit" class="button button--primary">Add Task</button>
+    </form>
+  </section>
+
+  <div class="table-container">
+    <div class="table-container__content">
+      <table class="table table-minimal">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th class="fit-width"></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('../graphql/queries.ejs') %> <%- include('../graphql/mutations.ejs')
+%>
+<script type="module">
+  import { toast } from '<%= process.env.APP_FRAMES_REMOTE_URL %>';
+
+  const addForm = document.getElementById('add-form');
+  addForm.addEventListener('submit', handleSubmit);
+
+  async function fetchTasks() {
+    const query = FetchTasks('<%= userId %>');
+
+    const response = await fetch('<%= process.env.APP_URL %>/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(query),
+    });
+    const payload = await response.json();
+
+    if (response.ok) {
+      const { tasks } = payload.data;
+      appendTask(tasks);
+    } else {
+      console.error(payload.errors);
+    }
+  }
+
+  function appendTask(tasks) {
+    if (tasks.length > 0) {
+      for (let i = 0; i < tasks.length; i++) {
+        const tbody = document.querySelector('#table-body');
+        const row = document.createElement('tr');
+        const cell1 = Object.assign(document.createElement('td'), {
+          textContent: tasks[i].description,
+        });
+        const cell2 = document.createElement('td');
+        const deleteBtn = Object.assign(document.createElement('button'), {
+          className: 'button button--knockout button--icon-only pull-right',
+          'aria-label': 'delete',
+          innerHTML: `<i class="toga-icon toga-icon-trash-can" aria-hidden />`,
+        });
+        deleteBtn.dataset.id = tasks[i]._id;
+        deleteBtn.addEventListener('click', () => {
+          deleteTask(tasks[i]._id);
+        });
+        cell2.append(deleteBtn);
+        row.append(cell1, cell2);
+        tbody.append(row);
+      }
+    } else {
+      const row = document.createElement('tr');
+      const cell = Object.assign(document.createElement('td'), {
+        className: 'text-center',
+        colSpan: 2,
+        textContent: 'No data',
+      });
+      row.append(cell);
+      tbody.append(row);
+    }
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    const toastData = {
+      sender: '<%= process.env.APP_URL %>',
+      option: {
+        closable: true,
+        duration: 2000,
+        message: 'Success!',
+        variant: 'notice',
+      },
+    };
+
+    const formData = new FormData(addForm);
+    const unwrappedFormData = {};
+    for (let pair of formData.entries()) {
+      unwrappedFormData[pair[0]] = pair[1];
+    }
+    const { description } = unwrappedFormData;
+    const query = AddTask(description, '<%= userId %>');
+    const response = await fetch('<%= process.env.APP_URL %>/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(query),
+    });
+    const payload = await response.json();
+
+    if (response.ok) {
+      document.getElementById('description').value = '';
+      toast(
+        toastData,
+        '<%= process.env.PROTOCOL %>://<%= subdomain %>.<%= process.env.ENVIRONMENT %>'
+      );
+      appendTask([payload.data.addTask]);
+    } else {
+      console.error(payload.errors);
+    }
+  }
+
+  async function deleteTask(id) {
+    const query = DeleteTask(id);
+
+    try {
+      const response = await fetch('<%= process.env.APP_URL %>/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(query),
+      });
+      const payload = await response.json();
+
+      if (response.ok) {
+        const el = document.querySelector(
+          `[data-id='${payload.data.deleteTask._id}']`
+        );
+        el.closest('tr').remove();
+
+        const toastData = {
+          sender: '<%= process.env.APP_URL %>',
+          option: {
+            closable: true,
+            duration: 2000,
+            message: 'Deleted!',
+            variant: 'notice',
+          },
+        };
+        toast(
+          toastData,
+          '<%= process.env.PROTOCOL %>://<%= subdomain %>.<%= process.env.ENVIRONMENT %>'
+        );
+      } else {
+        console.error(payload.errors);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  fetchTasks();
+</script>
+<%- include('../shared/end.ejs') %>

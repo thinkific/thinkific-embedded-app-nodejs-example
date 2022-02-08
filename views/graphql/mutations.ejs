@@ -1,0 +1,34 @@
+<script type="text/javascript">
+  function AddTask(description, userId) {
+    return {
+      query: `
+        mutation AddTask($description: String!, $userId: ID!) {
+          addTask(input: {description: $description, userId: $userId}) {
+            _id
+            description
+            userId
+          }
+        }
+      `,
+      variables: {
+        description,
+        userId,
+      },
+    };
+  }
+
+  function DeleteTask(id) {
+    return {
+      query: `
+        mutation DeleteTask($id: ID!) {
+          deleteTask(id: $id) {
+            _id
+          }
+        }
+      `,
+      variables: {
+        id,
+      },
+    };
+  }
+</script>

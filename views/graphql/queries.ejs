@@ -1,0 +1,18 @@
+<script type="text/javascript">
+  function FetchTasks(userId) {
+    return {
+      query: `
+        query ($userId: ID!) { 
+          tasks(userId: $userId) {
+            _id
+            description
+            userId
+          }
+        }
+      `,
+      variables: {
+        userId,
+      },
+    };
+  }
+</script>
